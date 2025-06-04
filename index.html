@@ -12,8 +12,14 @@
     -
 
     <title>Amblyfy - Screen Early. See Clearly.</title>
-
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js"></script>
+    <script>
+      const supabaseClient = supabase.createClient(
+        "https://temkhtebkbcidecterqz.supabase.co",
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E"
+      );
+    </script>
     <script>
       tailwind.config = {
         theme: {
@@ -351,7 +357,7 @@
         >
           <div class="md:w-1/2 fade-in-up">
             <img
-              src="https://placehold.co/600x400/144475/00AEC2?text=About+Us+Image"
+              src="assets/aboutUs.png"
               alt="About Us"
               class="rounded-lg shadow-xl w-full h-auto object-cover"
             />
@@ -364,11 +370,14 @@
               Our Mission
             </h2>
             <p class="text-lg text-white mb-4">
-              We are currently developing applications specifically designed for
-              amblyopia treatment. Our goal is to create an inspiring calendar
-              for children, helping both children and parents stay consistent
-              throughout the treatment process — consistency being one of the
-              key factors for successful amblyopia therapy.
+              We are dedicated to developing innovative applications for the
+              treatment of amblyopia. Our mission is to support children and
+              their families by making the therapy journey more engaging,
+              consistent, and effective. As part of this mission, we are
+              creating an inspiring, child-friendly calendar designed to
+              motivate daily participation and help parents and children stay on
+              track—because consistency is key to successful amblyopia
+              treatment.
             </p>
           </div>
         </div>
@@ -405,10 +414,16 @@
                 type="text"
                 id="name"
                 name="name"
+                maxlength="100"
+                pattern="[A-Za-z\s\-']{2,100}"
+                title="Please enter a valid name (2-100 characters, letters, spaces, hyphens, and apostrophes only)"
                 class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-dark-blue"
                 placeholder="Your Name"
                 required
               />
+              <span class="text-sm text-gray-500 mt-1 block"
+                >Maximum 100 characters</span
+              >
             </div>
             <div>
               <label
@@ -420,6 +435,9 @@
                 type="email"
                 id="email"
                 name="email"
+                maxlength="254"
+                pattern="[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$"
+                title="Please enter a valid email address"
                 class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-dark-blue"
                 placeholder="your@example.com"
                 required
@@ -435,10 +453,14 @@
                 id="message"
                 name="message"
                 rows="5"
+                maxlength="1000"
                 class="w-full px-4 py-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-brand-dark-blue"
                 placeholder="Your Message"
                 required
               ></textarea>
+              <span class="text-sm text-gray-500 mt-1 block"
+                >Maximum 1000 characters</span
+              >
             </div>
             <button
               type="submit"
@@ -526,12 +548,13 @@
           <p class="text-gray-600">&copy; 2025 Amblyfy. All rights reserved.</p>
           <div class="flex space-x-4 text-sm">
             <a
-              href="/privacy"
+              href="/index.html"
               class="text-gray-600 hover:text-brand-dark-blue transition-colors"
               >Privacy Policy</a
             >
+            <!-- To be changed to real privacy and stuff -->
             <a
-              href="/terms"
+              href="/index.html"
               class="text-gray-600 hover:text-brand-dark-blue transition-colors"
               >Terms of Service</a
             >
@@ -847,75 +870,130 @@
       };
 
       // Contact Form Handling
-      document
-        .getElementById("contactForm")
-        .addEventListener("submit", async function (e) {
-          e.preventDefault();
+      document.addEventListener("DOMContentLoaded", function () {
+        const supabaseClient = supabase.createClient(
+          "https://temkhtebkbcidecterqz.supabase.co",
+          "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRlbWtodGVia2JjaWRlY3RlcnF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDg5MzQwMDYsImV4cCI6MjA2NDUxMDAwNn0.6lK1CuirhFNRB-RVwMc-QPwirWlPUlNEbCjTPOg7B7E"
+        );
 
-          const formStatus = document.getElementById("formStatus");
-          const submitButton = document.getElementById("submitButton");
-          const originalButtonText = submitButton.textContent;
+        // Rate limiting
+        const RATE_LIMIT_WINDOW = 3600000; // 1 hour in milliseconds
+        const MAX_REQUESTS = 5; // Maximum requests per hour
+        let requestCount = 0;
+        let lastRequestTime = Date.now();
 
-          // Get form data
-          const formData = {
-            name: document.getElementById("name").value,
-            email: document.getElementById("email").value,
-            message: document.getElementById("message").value,
-          };
+        // Input sanitization function
+        function sanitizeInput(input) {
+          return input
+            .replace(/[<>]/g, "") // Remove < and > to prevent HTML injection
+            .trim();
+        }
 
-          try {
-            // Show loading state
-            submitButton.disabled = true;
-            submitButton.textContent = "Sending...";
-            formStatus.className =
-              "p-4 mb-4 rounded-md bg-blue-100 text-blue-700";
-            formStatus.textContent = "Sending your message...";
-            formStatus.classList.remove("hidden");
+        // Validate email format
+        function isValidEmail(email) {
+          const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+          return emailRegex.test(email);
+        }
 
-            // Send to backend
-            const response = await fetch(
-              "http://localhost:5001/api/contact/submit",
-              {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(formData),
-              }
+        // Check rate limit
+        function checkRateLimit() {
+          const now = Date.now();
+          if (now - lastRequestTime > RATE_LIMIT_WINDOW) {
+            requestCount = 0;
+            lastRequestTime = now;
+          }
+          return requestCount < MAX_REQUESTS;
+        }
+
+        document
+          .getElementById("contactForm")
+          .addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const formStatus = document.getElementById("formStatus");
+            const submitButton = document.getElementById("submitButton");
+            const originalButtonText = submitButton.textContent;
+
+            // Get and sanitize form data
+            const name = sanitizeInput(document.getElementById("name").value);
+            const email = sanitizeInput(document.getElementById("email").value);
+            const message = sanitizeInput(
+              document.getElementById("message").value
             );
 
-            console.log("Response status:", response.status);
-            const data = await response.json();
-            console.log("Response data:", data);
-
-            if (response.ok) {
-              // Show success message
-              formStatus.className =
-                "p-4 mb-4 rounded-md bg-green-100 text-green-700";
-              formStatus.textContent =
-                "Message sent successfully! We'll get back to you soon.";
-
-              // Reset form
-              this.reset();
-            } else {
-              // Show error message
+            // Validate inputs
+            if (name.length < 2) {
               formStatus.className =
                 "p-4 mb-4 rounded-md bg-red-100 text-red-700";
               formStatus.textContent =
-                data.message || "Something went wrong. Please try again.";
+                "Name must be at least 2 characters long.";
+              return;
             }
-          } catch (error) {
-            // Show error message with more details
-            console.error("Error details:", error);
-            formStatus.className =
-              "p-4 mb-4 rounded-md bg-red-100 text-red-700";
-            formStatus.textContent = `Failed to send message: ${error.message}. Please try again.`;
-          } finally {
-            // Reset button state
-            submitButton.disabled = false;
-            submitButton.textContent = originalButtonText;
-          }
-        });
+
+            if (!isValidEmail(email)) {
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+              formStatus.textContent = "Please enter a valid email address.";
+              return;
+            }
+
+            if (message.length < 10) {
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+              formStatus.textContent =
+                "Message must be at least 10 characters long.";
+              return;
+            }
+
+            // Check rate limit
+            if (!checkRateLimit()) {
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+              formStatus.textContent =
+                "Too many requests. Please try again later.";
+              return;
+            }
+
+            try {
+              submitButton.disabled = true;
+              submitButton.textContent = "Sending...";
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-blue-100 text-blue-700";
+              formStatus.textContent = "Sending your message...";
+              formStatus.classList.remove("hidden");
+
+              const { error } = await supabaseClient.from("messages").insert([
+                {
+                  name,
+                  email,
+                  message,
+                  created_at: new Date().toISOString(),
+                },
+              ]);
+
+              if (error) {
+                formStatus.className =
+                  "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+                formStatus.textContent = "Error: " + error.message;
+              } else {
+                formStatus.className =
+                  "p-4 mb-4 rounded-md bg-green-100 text-green-700";
+                formStatus.textContent =
+                  "Message sent successfully! We'll get back to you soon.";
+                this.reset();
+                requestCount++; // Increment request count on successful submission
+              }
+            } catch (err) {
+              console.error("Error details:", err);
+              formStatus.className =
+                "p-4 mb-4 rounded-md bg-red-100 text-red-700";
+              formStatus.textContent = `Failed to send message: ${err.message}. Please try again.`;
+            } finally {
+              submitButton.disabled = false;
+              submitButton.textContent = originalButtonText;
+            }
+          });
+      });
     </script>
   </body>
 </html>
