@@ -79,7 +79,6 @@ async function startColorTest() {
   TEST_CONFIG.correctAnswers = 0;
   TEST_CONFIG.wrongAnswers = 0;
 
-  // Show color test instructions
   document.querySelector(".max-w-3xl").innerHTML = `
     <div class="text-center space-y-8">
       <h2 class="text-4xl font-bold text-brand-dark-blue">Color Vision Test</h2>
@@ -96,7 +95,7 @@ async function startColorTest() {
             </div>
             <div>
               <h3 class="text-xl font-semibold text-brand-dark-blue">Test Overview</h3>
-              <p class="text-gray-600">You'll be shown various color plates and symbols</p>
+              <p class="text-gray-600">You'll be shown a series of images and asked to identify what you see</p>
             </div>
           </div>
 
@@ -106,32 +105,30 @@ async function startColorTest() {
               <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
                 <span class="text-brand-dark-blue font-semibold">1</span>
               </div>
-              <p class="text-gray-700">Keep both eyes open during the test</p>
+              <p class="text-gray-700">Look at the image in the center of the screen</p>
             </div>
             <div class="flex items-start space-x-3">
               <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
                 <span class="text-brand-dark-blue font-semibold">2</span>
               </div>
-              <p class="text-gray-700">Look at each color plate and identify the symbol or number</p>
+              <p class="text-gray-700">Click the button that matches what you see</p>
             </div>
             <div class="flex items-start space-x-3">
               <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
                 <span class="text-brand-dark-blue font-semibold">3</span>
               </div>
-              <p class="text-gray-700">Click the button showing what you see</p>
+              <p class="text-gray-700">If you can't see anything clearly, click the "Nothing" button</p>
             </div>
-            <div class="flex items-start space-x-3">
-              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
-                <span class="text-brand-dark-blue font-semibold">4</span>
-              </div>
-              <p class="text-gray-700">If you can't see anything, click the "Nothing" button</p>
-            </div>
+          </div>
+
+          
+            
           </div>
         </div>
       </div>
 
       <button
-        id="startTestButton"
+        id="startColorTestButton"
         onclick="startColorTestRound()"
         class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
       >
@@ -143,7 +140,7 @@ async function startColorTest() {
   // Add keyboard listener for Enter key
   const enterHandler = function (e) {
     if (e.key === "Enter") {
-      document.getElementById("startTestButton").click();
+      document.getElementById("startColorTestButton").click();
       document.removeEventListener("keypress", enterHandler);
     }
   };
@@ -152,60 +149,151 @@ async function startColorTest() {
 
 // Function to start a color test round
 function startColorTestRound() {
-  console.log("Starting color test round..."); // Debug log
-  // Select random symbol and image
+  // Get random symbol and image
   const symbol = getRandomSymbol();
   const imageNumber = getRandomImageNumber(symbol);
   const imagePath = `assets/colorTests/${symbol}/${imageNumber}.png`;
 
   document.querySelector(".max-w-3xl").innerHTML = `
-        <div class="text-center space-y-8">
-            <h2 class="text-4xl font-bold text-brand-dark-blue">Color Vision Test - Plate ${
-              TEST_CONFIG.currentRound + 1
-            }/${colorTestConfig.totalPlates}</h2>
-            <div class="relative w-[600px] h-[600px] bg-gray-100 rounded-lg overflow-hidden mx-auto">
-                <img src="${imagePath}" alt="Color test plate" class="w-full h-full object-contain">
-            </div>
-            <div class="mt-8">
-                <p class="text-lg mb-4">What symbol do you see in the plate above?</p>
-                <div id="colorAnswerButtons" class="flex flex-wrap justify-center gap-4">
-                    ${colorTestConfig.symbols
-                      .map(
-                        (sym) => `
-                        <button onclick="checkColorAnswer('${sym}', '${symbol}')" 
-                            class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
-                            ${sym}
-                        </button>
-                    `
-                      )
-                      .join("")}
-                </div>
-            </div>
+    <div class="text-center space-y-8">
+      <h2 class="text-4xl font-bold text-brand-dark-blue">Color Vision Test - Plate ${
+        TEST_CONFIG.currentRound + 1
+      }/${colorTestConfig.totalPlates}</h2>
+      <div class="relative bg-gray-100 rounded-lg overflow-hidden max-w-2xl mx-auto">
+        <!-- Test Image -->
+        <div class="p-8">
+          <img id="testImage" src="${imagePath}" alt="Color test plate" class="w-96 h-96 mx-auto transform transition-all duration-500">
         </div>
-    `;
+        
+        <!-- Answer Buttons -->
+        <div class="grid grid-cols-3 gap-4 p-6 bg-white border-t border-gray-200">
+          <!-- Box Button -->
+          <button onclick="checkColorAnswer('BOX')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">
+            <img src="assets/colorTests/boxBtn.png" alt="Box" class="w-8 h-8 mx-auto">
+          </button>
+          <!-- I Button -->
+          <button onclick="checkColorAnswer('I')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">
+            <img src="assets/colorTests/iBtn.png" alt="I" class="w-8 h-8 mx-auto">
+          </button>
+          <!-- O Button -->
+          <button onclick="checkColorAnswer('O')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">
+            <img src="assets/colorTests/OBtn.png" alt="O" class="w-8 h-8 mx-auto">
+          </button>
+          <!-- Smiley Button -->
+          <button onclick="checkColorAnswer('SMILEY')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">
+            <img src="assets/colorTests/SmileyBtn.png" alt="Smiley" class="w-8 h-8 mx-auto">
+          </button>
+          <!-- X Button -->
+          <button onclick="checkColorAnswer('X')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">
+            <img src="assets/colorTests/xBtn.png" alt="X" class="w-8 h-8 mx-auto">
+          </button>
+          <!-- Nothing Button -->
+          <button onclick="checkColorAnswer('nothing')" class="px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-black border-2 border-gray-200">
+            <div class="flex flex-col items-center">
+              <span class="text-sm mt-1">Nothing</span>
+            </div>
+          </button>
+        </div>
+      </div>
+      <div class="text-lg">
+        <p>Click the button that matches what you see in the image.</p>
+        <p class="mt-2">Plate ${TEST_CONFIG.currentRound + 1} of ${
+    colorTestConfig.totalPlates
+  }</p>
+      </div>
+    </div>
+  `;
+
+  // Store the correct answer for this round
+  document.getElementById("testImage").dataset.correctAnswer = symbol;
+
+  // Remove any existing keyboard listeners
+  document.removeEventListener("keypress", handleColorTestKeyPress);
+}
+
+// Function to handle keyboard input during color test
+function handleColorTestKeyPress(e) {
+  if (TEST_CONFIG.isAnswering) return;
+
+  switch (e.key) {
+    case "1":
+      checkColorAnswer("BOX");
+      break;
+    case "2":
+      checkColorAnswer("I");
+      break;
+    case "3":
+      checkColorAnswer("O");
+      break;
+    case "4":
+      checkColorAnswer("SMILEY");
+      break;
+    case "5":
+      checkColorAnswer("X");
+      break;
+    case "6":
+      checkColorAnswer("nothing");
+      break;
+  }
 }
 
 // Function to check color test answer
-function checkColorAnswer(selectedSymbol, correctSymbol) {
-  console.log("Checking color answer..."); // Debug log
+function checkColorAnswer(selectedAnswer) {
   if (TEST_CONFIG.isAnswering) return;
 
   TEST_CONFIG.isAnswering = true;
-  const isCorrect = selectedSymbol === correctSymbol;
+  const testImage = document.getElementById("testImage");
+  const correctAnswer = testImage.dataset.correctAnswer;
+  const buttons = document.querySelectorAll("button");
 
-  // Update test results
-  if (isCorrect) {
-    TEST_CONFIG.correctAnswers++;
-  } else {
-    TEST_CONFIG.wrongAnswers++;
+  // Disable all buttons temporarily
+  buttons.forEach((btn) => (btn.disabled = true));
+
+  // Handle "nothing" response
+  if (selectedAnswer === "nothing") {
+    const nothingButton = document.querySelector(
+      "button[onclick=\"checkColorAnswer('nothing')\"]"
+    );
+    nothingButton.classList.add("bg-red-300");
+
+    setTimeout(() => {
+      TEST_CONFIG.wrongAnswers++;
+      TEST_CONFIG.currentRound++;
+
+      if (
+        TEST_CONFIG.wrongAnswers >= colorTestConfig.maxWrongAnswers ||
+        TEST_CONFIG.currentRound >= colorTestConfig.totalPlates
+      ) {
+        showColorTestResults();
+      } else {
+        startColorTestRound();
+      }
+
+      TEST_CONFIG.isAnswering = false;
+    }, 1000);
+    return;
+  }
+
+  // Highlight the selected button
+  const selectedButton = document.querySelector(
+    `button[onclick="checkColorAnswer('${selectedAnswer}')"]`
+  );
+  if (selectedButton) {
+    selectedButton.classList.add(
+      selectedAnswer === correctAnswer ? "bg-brand-pale-green" : "bg-red-300"
+    );
   }
 
   // Wait 1 second before moving to next round
   setTimeout(() => {
-    TEST_CONFIG.currentRound++;
-    TEST_CONFIG.isAnswering = false;
+    if (selectedAnswer === correctAnswer) {
+      TEST_CONFIG.correctAnswers++;
+    } else {
+      TEST_CONFIG.wrongAnswers++;
+    }
 
-    // Check if test should end
+    TEST_CONFIG.currentRound++;
+
     if (
       TEST_CONFIG.correctAnswers >= colorTestConfig.requiredCorrectAnswers ||
       TEST_CONFIG.wrongAnswers >= colorTestConfig.maxWrongAnswers ||
@@ -215,6 +303,8 @@ function checkColorAnswer(selectedSymbol, correctSymbol) {
     } else {
       startColorTestRound();
     }
+
+    TEST_CONFIG.isAnswering = false;
   }, 1000);
 }
 
@@ -223,6 +313,9 @@ function showColorTestResults() {
   console.log("Showing color test results..."); // Debug log
   const passed =
     TEST_CONFIG.correctAnswers >= colorTestConfig.requiredCorrectAnswers;
+
+  // Remove keyboard listener when showing results
+  document.removeEventListener("keypress", handleColorTestKeyPress);
 
   document.querySelector(".max-w-3xl").innerHTML = `
         <div class="text-center space-y-8">
@@ -255,3 +348,4 @@ window.startColorTest = startColorTest;
 window.startColorTestRound = startColorTestRound;
 window.checkColorAnswer = checkColorAnswer;
 window.showColorTestResults = showColorTestResults;
+window.handleColorTestKeyPress = handleColorTestKeyPress;

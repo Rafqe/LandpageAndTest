@@ -162,6 +162,8 @@ function startFullscreenTest() {
 
 // Function to start the acuity test
 function startAcuityTest() {
+  if (TEST_CONFIG.testStarted) return; // Prevent multiple starts
+
   // Stop the demo animation
   if (demoInterval) {
     clearInterval(demoInterval);
@@ -171,6 +173,7 @@ function startAcuityTest() {
   TEST_CONFIG.testStarted = true;
   TEST_CONFIG.currentRound = 0;
   TEST_CONFIG.hasRetry = false;
+  TEST_CONFIG.currentTest = "acuity";
 
   // Calculate sizes based on screen and viewing distance
   calculateSizes();
@@ -275,63 +278,6 @@ function checkAnswer(selectedDirection) {
 
   // Disable all buttons temporarily
   buttons.forEach((btn) => (btn.disabled = true));
-
-  // Handle "can't see" response
-  if (selectedDirection === "cant_see") {
-    const cantSeeButton = document.querySelector(
-      "button[onclick=\"checkAnswer('cant_see')\"]"
-    );
-    cantSeeButton.classList.add("bg-red-300");
-
-    setTimeout(() => {
-      if (!TEST_CONFIG.hasRetry) {
-        // First "can't see" - mark retry used and continue to next size
-        TEST_CONFIG.hasRetry = true;
-        TEST_CONFIG.currentRound++;
-
-        if (TEST_CONFIG.currentRound < TEST_CONFIG.rounds) {
-          // Update round number
-          const isLeftEye = document
-            .querySelector("h2")
-            .textContent.includes("Left Eye");
-          document.querySelector("h2").textContent = `${
-            isLeftEye ? "Left" : "Right"
-          } Eye Test - Round ${TEST_CONFIG.currentRound + 1}/${
-            TEST_CONFIG.rounds
-          }`;
-          document.querySelector(
-            ".text-lg p:nth-child(2)"
-          ).textContent = `Round ${TEST_CONFIG.currentRound + 1} of ${
-            TEST_CONFIG.rounds
-          }`;
-
-          // Reset button styles
-          buttons.forEach((btn) => {
-            btn.disabled = false;
-            btn.classList.remove("bg-brand-pale-green", "bg-red-300");
-          });
-
-          // Start next round
-          startRound();
-        } else {
-          // Test completed
-          const isLeftEye = document
-            .querySelector("h2")
-            .textContent.includes("Left Eye");
-          showResults(false, isLeftEye ? "left" : "right");
-        }
-      } else {
-        // Second "can't see" - end test
-        const isLeftEye = document
-          .querySelector("h2")
-          .textContent.includes("Left Eye");
-        showResults(false, isLeftEye ? "left" : "right");
-      }
-
-      TEST_CONFIG.isAnswering = false;
-    }, 1000);
-    return;
-  }
 
   // Highlight the selected button
   const selectedButton = document.querySelector(
@@ -1028,7 +974,8 @@ function showTestInstructions() {
       </div>
 
       <button
-        onclick="startAcuityTest()"
+        id="startAcuityTestButton"
+        onclick="startFullscreenTest()"
         class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
       >
         Start Test
@@ -1037,12 +984,13 @@ function showTestInstructions() {
   `;
 
   // Add keyboard listener for Enter key
-  document.addEventListener("keypress", function handleEnter(e) {
+  const enterHandler = function (e) {
     if (e.key === "Enter") {
-      startAcuityTest();
-      document.removeEventListener("keypress", handleEnter);
+      document.getElementById("startAcuityTestButton").click();
+      document.removeEventListener("keypress", enterHandler);
     }
-  });
+  };
+  document.addEventListener("keypress", enterHandler);
 }
 
 // Add keyboard event listener for test navigation
