@@ -1,33 +1,36 @@
 // Test configuration
 const TEST_CONFIG = {
   rounds: 10,
-  // Base sizes for 1920x1024 screen at 1m distance
+  // Base sizes for 24-inch screen (1920x1024) at 90cm distance
   baseSizes: {
-    "20/200": 54, // 14.6mm
-    "20/100": 27, // 7.3mm
-    "20/70": 18.9, // 5.1mm
-    "20/50": 13.5, // 3.7mm
-    "20/40": 10.74, // 2.9mm
-    "20/30": 8, // 2.2mm
-    "20/25": 6.72, // 1.8mm
-    "20/20": 5.4, // 1.4mm
-    "20/15": 4, // 1.1mm
-    "20/10": 2.7, // 0.7mm
+    "20/200": 58, // 15.5mm
+    "20/100": 29, // 7.7mm
+    "20/70": 20.2, // 5.4mm
+    "20/50": 14.4, // 3.8mm
+    "20/40": 11.5, // 3.1mm
+    "20/30": 8.6, // 2.3mm
+    "20/25": 7.2, // 1.9mm
+    "20/20": 5.8, // 1.5mm
+    "20/15": 4.3, // 1.1mm
+    "20/10": 2.9, // 0.8mm
   },
   sizes: [], // Will be calculated based on screen size
   directions: [
     { rotation: "0deg", answer: "90deg", label: "↑" }, // Up
+    { rotation: "45deg", answer: "135deg", label: "↗" }, // Up-Right
     { rotation: "90deg", answer: "180deg", label: "→" }, // Right
+    { rotation: "135deg", answer: "225deg", label: "↘" }, // Down-Right
     { rotation: "180deg", answer: "270deg", label: "↓" }, // Down
+    { rotation: "225deg", answer: "315deg", label: "↙" }, // Down-Left
     { rotation: "270deg", answer: "0deg", label: "←" }, // Left
+    { rotation: "315deg", answer: "45deg", label: "↖" }, // Up-Left
   ],
   currentRound: 0,
   testStarted: false,
   isAnswering: false,
   hasRetry: false,
   screenSize: null, // Will store screen size in inches
-  viewingDistance: null, // Will store calculated viewing distance
-  currentTest: "acuity", // Current test type: "acuity" or "contrast"
+  currentTest: "acuity", // Current test type: "acuity", "contrast", or "color"
   contrastLevels: [
     { level: 1.0, label: "100%" },
     { level: 0.8, label: "80%" },
@@ -40,6 +43,55 @@ const TEST_CONFIG = {
     { level: 0.0125, label: "1.25%" },
     { level: 0.00625, label: "0.625%" },
   ],
+  // Color test tracking
+  correctAnswers: 0,
+  wrongAnswers: 0,
+};
+
+// Add these constants at the top of the file with other TEST_CONFIG
+const CONTRAST_RATINGS = {
+  "0.625%": "Excellent",
+  "1.25%": "Very Good",
+  "2.5%": "Good",
+  "5%": "Fair",
+  "10%": "Moderate",
+  "20%": "Poor",
+  "40%": "Very Poor",
+  "60%": "Severe",
+  "80%": "Very Severe",
+  "100%": "Critical",
+};
+
+const CONTRAST_SCORES = {
+  "0.625%": 100,
+  "1.25%": 90,
+  "2.5%": 80,
+  "5%": 70,
+  "10%": 60,
+  "20%": 50,
+  "40%": 40,
+  "60%": 30,
+  "80%": 20,
+  "100%": 10,
+};
+
+const CONTRAST_RECOMMENDATIONS = {
+  "0.625%": "Your contrast sensitivity is excellent. No action needed.",
+  "1.25%":
+    "Your contrast sensitivity is very good. Regular eye check-ups recommended.",
+  "2.5%": "Your contrast sensitivity is good. Consider annual eye exams.",
+  "5%": "Your contrast sensitivity is fair. Schedule an eye exam soon.",
+  "10%":
+    "Your contrast sensitivity is moderate. Schedule an eye exam as soon as possible.",
+  "20%": "Your contrast sensitivity is poor. Schedule an eye exam immediately.",
+  "40%":
+    "Your contrast sensitivity is very poor. Schedule an eye exam immediately.",
+  "60%":
+    "Your contrast sensitivity is severe. Schedule an eye exam immediately.",
+  "80%":
+    "Your contrast sensitivity is very severe. Schedule an eye exam immediately.",
+  "100%":
+    "Your contrast sensitivity is critical. Schedule an eye exam immediately.",
 };
 
 // Function to exit fullscreen
@@ -56,7 +108,7 @@ function exitFullscreen() {
   window.location.href = "pretestPage.html";
 }
 
-// Function to calculate sizes based on screen dimensions and viewing distance
+// Function to calculate sizes based on screen dimensions
 function calculateSizes() {
   // Get actual screen dimensions in pixels
   const screenWidth = window.screen.width * window.devicePixelRatio;
@@ -68,16 +120,13 @@ function calculateSizes() {
   );
   const ppi = diagonalPixels / TEST_CONFIG.screenSize;
 
-  // Calculate scale based on PPI (using 96 PPI as reference)
-  const ppiScale = ppi / 96;
-
-  // Adjust sizes based on viewing distance
-  // Base sizes are calibrated for 1m, so multiply by the actual viewing distance
-  const distanceMultiplier = TEST_CONFIG.viewingDistance;
+  // Calculate scale based on PPI (using 24-inch screen with 1920x1024 as reference)
+  // For a 24-inch screen with 1920x1024, the reference PPI is approximately 92
+  const ppiScale = ppi / 92;
 
   // Calculate new sizes
   TEST_CONFIG.sizes = Object.values(TEST_CONFIG.baseSizes).map(
-    (size) => Math.round(size * ppiScale * distanceMultiplier * 100) / 100 // Round to 2 decimal places
+    (size) => Math.round(size * ppiScale * 100) / 100 // Round to 2 decimal places
   );
 
   // Debug info
@@ -88,8 +137,7 @@ function calculateSizes() {
     screenSize: `${TEST_CONFIG.screenSize} inches`,
     calculatedPPI: Math.round(ppi),
     ppiScale: ppiScale.toFixed(3),
-    viewingDistance: `${TEST_CONFIG.viewingDistance} meters`,
-    distanceMultiplier: distanceMultiplier,
+    viewingDistance: "90cm (constant)",
     note: "Using detected screen dimensions and user-provided screen size",
   });
   console.log("Calculated sizes:", TEST_CONFIG.sizes);
@@ -139,12 +187,20 @@ function startAcuityTest() {
           <div id="testButtons" class="absolute inset-0">
             <!-- Top Button -->
             <button onclick="checkAnswer('0deg')" class="absolute top-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↑</button>
+            <!-- Top-Right Button -->
+            <button onclick="checkAnswer('45deg')" class="absolute top-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↗</button>
             <!-- Right Button -->
             <button onclick="checkAnswer('90deg')" class="absolute top-[50%] right-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">→</button>
+            <!-- Bottom-Right Button -->
+            <button onclick="checkAnswer('135deg')" class="absolute bottom-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↘</button>
             <!-- Bottom Button -->
             <button onclick="checkAnswer('180deg')" class="absolute bottom-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↓</button>
+            <!-- Bottom-Left Button -->
+            <button onclick="checkAnswer('225deg')" class="absolute bottom-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↙</button>
             <!-- Left Button -->
             <button onclick="checkAnswer('270deg')" class="absolute top-[50%] left-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">←</button>
+            <!-- Top-Left Button -->
+            <button onclick="checkAnswer('315deg')" class="absolute top-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↖</button>
           </div>
         </div>
       </div>
@@ -153,7 +209,6 @@ function startAcuityTest() {
         <p class="mt-2">Round ${TEST_CONFIG.currentRound + 1} of ${
     TEST_CONFIG.rounds
   }</p>
-        <p class="mt-2 text-sm text-gray-600">You can use arrow keys (↑, →, ↓, ←) or click the buttons to answer</p>
       </div>
     </div>
   `;
@@ -220,6 +275,63 @@ function checkAnswer(selectedDirection) {
 
   // Disable all buttons temporarily
   buttons.forEach((btn) => (btn.disabled = true));
+
+  // Handle "can't see" response
+  if (selectedDirection === "cant_see") {
+    const cantSeeButton = document.querySelector(
+      "button[onclick=\"checkAnswer('cant_see')\"]"
+    );
+    cantSeeButton.classList.add("bg-red-300");
+
+    setTimeout(() => {
+      if (!TEST_CONFIG.hasRetry) {
+        // First "can't see" - mark retry used and continue to next size
+        TEST_CONFIG.hasRetry = true;
+        TEST_CONFIG.currentRound++;
+
+        if (TEST_CONFIG.currentRound < TEST_CONFIG.rounds) {
+          // Update round number
+          const isLeftEye = document
+            .querySelector("h2")
+            .textContent.includes("Left Eye");
+          document.querySelector("h2").textContent = `${
+            isLeftEye ? "Left" : "Right"
+          } Eye Test - Round ${TEST_CONFIG.currentRound + 1}/${
+            TEST_CONFIG.rounds
+          }`;
+          document.querySelector(
+            ".text-lg p:nth-child(2)"
+          ).textContent = `Round ${TEST_CONFIG.currentRound + 1} of ${
+            TEST_CONFIG.rounds
+          }`;
+
+          // Reset button styles
+          buttons.forEach((btn) => {
+            btn.disabled = false;
+            btn.classList.remove("bg-brand-pale-green", "bg-red-300");
+          });
+
+          // Start next round
+          startRound();
+        } else {
+          // Test completed
+          const isLeftEye = document
+            .querySelector("h2")
+            .textContent.includes("Left Eye");
+          showResults(false, isLeftEye ? "left" : "right");
+        }
+      } else {
+        // Second "can't see" - end test
+        const isLeftEye = document
+          .querySelector("h2")
+          .textContent.includes("Left Eye");
+        showResults(false, isLeftEye ? "left" : "right");
+      }
+
+      TEST_CONFIG.isAnswering = false;
+    }, 1000);
+    return;
+  }
 
   // Highlight the selected button
   const selectedButton = document.querySelector(
@@ -315,26 +427,50 @@ function showResults(perfectScore, eye = "right") {
     // Show left eye test prompt
     document.querySelector(".max-w-3xl").innerHTML = `
       <div class="text-center space-y-8">
-        <h2 class="text-4xl font-bold text-brand-dark-blue">Right Eye Test Complete!</h2>
-        <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-          <p class="text-2xl mb-4">Right Eye Visual Acuity: ${snellenResult}</p>
-          ${
-            perfectScore
-              ? '<p class="text-lg text-green-600">Perfect score! You completed all levels.</p>'
-              : ""
-          }
-        </div>
-        <div class="mt-8">
-          <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your left eye</h3>
-          <p class="text-lg mb-6">Please cover your right eye with your hand</p>
-          <button
-            id="startLeftEyeButton"
-            onclick="startLeftEyeTest()"
-            class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-          >
-            Start Left Eye Test
-          </button>
-          <p class="text-sm text-gray-600 mt-2">Press Enter to start the test</p>
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+          <div class="space-y-6">
+            <!-- Right Eye Results -->
+            <div class="bg-brand-pale-green/20 p-6 rounded-lg">
+              <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Right Eye Test Complete!</h3>
+              <div class="flex items-center justify-center space-x-4">
+                <div class="w-16 h-16 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                  <svg class="w-8 h-8 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                </div>
+                <div class="text-left">
+                  <p class="text-2xl font-bold text-brand-dark-blue">${snellenResult}</p>
+                  <p class="text-gray-600">Visual Acuity</p>
+                </div>
+              </div>
+              ${
+                perfectScore
+                  ? '<p class="text-lg text-green-600 mt-4">Perfect score! You completed all levels.</p>'
+                  : ""
+              }
+            </div>
+
+            <!-- Left Eye Instructions -->
+            <div class="text-center">
+              <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your left eye</h3>
+              <div class="flex items-center justify-center space-x-4 mb-6">
+                <div class="w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+                  <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                  </svg>
+                </div>
+                <p class="text-lg">Please cover your right eye with your hand</p>
+              </div>
+              <button
+                id="startLeftEyeButton"
+                onclick="startLeftEyeTest()"
+                class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+              >
+                Start Left Eye Test
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     `;
@@ -351,30 +487,53 @@ function showResults(perfectScore, eye = "right") {
     // Show final results for both eyes and prompt for contrast test
     document.querySelector(".max-w-3xl").innerHTML = `
       <div class="text-center space-y-8">
-        <h2 class="text-4xl font-bold text-brand-dark-blue">Acuity Test Completed!</h2>
-        <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-          <p class="text-2xl mb-4">Your Visual Acuity Results:</p>
-          <div class="grid grid-cols-2 gap-4 mt-4">
-            <div class="p-4 bg-white rounded-lg">
-              <p class="text-xl font-semibold text-brand-dark-blue">Right Eye</p>
-              <p class="text-2xl mt-2">${TEST_CONFIG.rightEyeResult}</p>
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+          <div class="space-y-6">
+            <h2 class="text-3xl font-bold text-brand-dark-blue">Acuity Test Completed!</h2>
+            
+            <!-- Results Grid -->
+            <div class="grid grid-cols-2 gap-6">
+              <!-- Right Eye -->
+              <div class="bg-brand-pale-green/20 p-6 rounded-lg">
+                <div class="flex items-center space-x-4 mb-4">
+                  <div class="w-12 h-12 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h3 class="text-xl font-semibold text-brand-dark-blue">Right Eye</h3>
+                </div>
+                <p class="text-2xl font-bold text-brand-dark-blue">${TEST_CONFIG.rightEyeResult}</p>
+              </div>
+
+              <!-- Left Eye -->
+              <div class="bg-brand-pale-green/20 p-6 rounded-lg">
+                <div class="flex items-center space-x-4 mb-4">
+                  <div class="w-12 h-12 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h3 class="text-xl font-semibold text-brand-dark-blue">Left Eye</h3>
+                </div>
+                <p class="text-2xl font-bold text-brand-dark-blue">${TEST_CONFIG.leftEyeResult}</p>
+              </div>
             </div>
-            <div class="p-4 bg-white rounded-lg">
-              <p class="text-xl font-semibold text-brand-dark-blue">Left Eye</p>
-              <p class="text-2xl mt-2">${TEST_CONFIG.leftEyeResult}</p>
+
+            <!-- Next Test Prompt -->
+            <div class="text-center pt-6">
+              <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your contrast sensitivity</h3>
+              <p class="text-lg mb-6">This test will measure how well you can distinguish between different shades of gray</p>
+              <button
+                onclick="startContrastTest()"
+                class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+              >
+                Start Contrast Test
+              </button>
             </div>
           </div>
-        </div>
-        <div class="mt-8">
-          <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your contrast sensitivity</h3>
-          <p class="text-lg mb-6">This test will measure how well you can distinguish between different shades of gray</p>
-          <button
-            onclick="startContrastTest()"
-            class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-          >
-            Start Contrast Test
-          </button>
-          <p class="text-sm text-gray-600 mt-2">Press Enter to start the test</p>
         </div>
       </div>
     `;
@@ -416,12 +575,20 @@ function startLeftEyeTest() {
           <div id="testButtons" class="absolute inset-0">
             <!-- Top Button -->
             <button onclick="checkAnswer('0deg')" class="absolute top-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↑</button>
+            <!-- Top-Right Button -->
+            <button onclick="checkAnswer('45deg')" class="absolute top-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↗</button>
             <!-- Right Button -->
             <button onclick="checkAnswer('90deg')" class="absolute top-[50%] right-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">→</button>
+            <!-- Bottom-Right Button -->
+            <button onclick="checkAnswer('135deg')" class="absolute bottom-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↘</button>
             <!-- Bottom Button -->
             <button onclick="checkAnswer('180deg')" class="absolute bottom-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↓</button>
+            <!-- Bottom-Left Button -->
+            <button onclick="checkAnswer('225deg')" class="absolute bottom-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↙</button>
             <!-- Left Button -->
             <button onclick="checkAnswer('270deg')" class="absolute top-[50%] left-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">←</button>
+            <!-- Top-Left Button -->
+            <button onclick="checkAnswer('315deg')" class="absolute top-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↖</button>
           </div>
         </div>
       </div>
@@ -430,7 +597,6 @@ function startLeftEyeTest() {
         <p class="mt-2">Round ${TEST_CONFIG.currentRound + 1} of ${
     TEST_CONFIG.rounds
   }</p>
-        <p class="mt-2 text-sm text-gray-600">You can use arrow keys (↑, →, ↓, ←) or click the buttons to answer</p>
       </div>
     </div>
   `;
@@ -531,37 +697,101 @@ function showCalibrationScreen() {
   document.querySelector(".max-w-3xl").innerHTML = `
     <div class="text-center space-y-8">
       <h2 class="text-4xl font-bold text-brand-dark-blue">Screen Calibration</h2>
-      <div class="bg-brand-pale-green/20 p-8 rounded-lg max-w-md mx-auto">
-        <p class="text-lg mb-4">Please enter your screen size:</p>
-        <div class="flex items-center justify-center space-x-2">
-          <input
-            type="number"
-            id="screenSize"
-            class="w-24 px-4 py-2 border-2 border-brand-dark-blue rounded-lg focus:outline-none focus:border-brand-cyan"
-            placeholder="Size"
-            min="1"
-            max="100"
-            step="0.1"
-          />
-          <span class="text-lg">inches</span>
+      
+      <!-- Main Calibration Card -->
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+        <div class="space-y-6">
+          <!-- Calibration Overview -->
+          <div class="flex items-center space-x-4 text-left">
+            <div class="flex-shrink-0 w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-brand-dark-blue">Screen Size Required</h3>
+              <p class="text-gray-600">Please select your display type or enter your screen size</p>
+            </div>
+          </div>
+
+          <!-- Input Section -->
+          <div class="bg-gray-50 rounded-lg p-6">
+            <!-- Common Displays Dropdown -->
+            <div class="mb-6">
+              <label for="displayType" class="block text-sm font-medium text-gray-700 mb-2">Common Displays</label>
+              <select
+                id="displayType"
+                class="w-full px-4 py-3 text-lg border-2 border-brand-dark-blue rounded-lg focus:outline-none focus:border-brand-cyan"
+                onchange="handleDisplayTypeChange(this.value)"
+              >
+                <option value="">Select your display type</option>
+                <optgroup label="Laptops">
+                  <option value="13">13" Laptop (MacBook Air, etc.)</option>
+                  <option value="14">14" Laptop (MacBook Pro, etc.)</option>
+                  <option value="15.6">15.6" Laptop (Standard Windows Laptop)</option>
+                  <option value="16">16" Laptop (MacBook Pro, etc.)</option>
+                </optgroup>
+                <optgroup label="Desktop Monitors">
+                  <option value="21.5">21.5" Monitor (Standard Desktop)</option>
+                  <option value="24">24" Monitor (Standard Desktop)</option>
+                  <option value="27">27" Monitor (Standard Desktop)</option>
+                  <option value="32">32" Monitor (Large Desktop)</option>
+                </optgroup>
+                <optgroup label="Apple Displays">
+                  <option value="21.5">iMac 21.5"</option>
+                  <option value="24">iMac 24"</option>
+                  <option value="27">iMac 27"</option>
+                  <option value="32">iMac 32"</option>
+                </optgroup>
+                <option value="custom">Custom Size</option>
+              </select>
+            </div>
+
+            <!-- Manual Input -->
+            <div class="flex items-center justify-center space-x-4">
+              <input
+                type="number"
+                id="screenSize"
+                class="w-24 px-4 py-3 text-xl text-center border-2 border-brand-dark-blue rounded-lg focus:outline-none focus:border-brand-cyan"
+                placeholder="Size"
+                min="1"
+                max="100"
+                step="0.1"
+              />
+              <span class="text-xl font-semibold text-gray-700">inches</span>
+            </div>
+            <p class="text-sm text-gray-600 mt-3">Measure diagonally from corner to corner</p>
+          </div>
+
+          <!-- Start Button -->
+          <button
+            onclick="startCalibration()"
+            class="w-full bg-brand-dark-blue text-white py-4 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+          >
+            Start Test
+          </button>
         </div>
-        <p class="text-sm text-gray-600 mt-2">(Measure diagonally from corner to corner)</p>
-        <button
-          onclick="startCalibration()"
-          class="mt-6 bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-        >
-          Start Test
-        </button>
       </div>
     </div>
   `;
 
-  // Add enter key listener
+  // Add enter key listener for the input
   document.getElementById("screenSize").addEventListener("keypress", (e) => {
     if (e.key === "Enter") {
       startCalibration();
     }
   });
+}
+
+// Function to handle display type selection
+function handleDisplayTypeChange(value) {
+  const screenSizeInput = document.getElementById("screenSize");
+  if (value === "custom") {
+    screenSizeInput.value = "";
+    screenSizeInput.focus();
+  } else if (value) {
+    screenSizeInput.value = value;
+  }
 }
 
 // Function to start calibration
@@ -601,97 +831,215 @@ function startCalibration() {
     });
 }
 
-// Function to show distance instructions
+// Function to show positioning screen
 function showPositioningScreen() {
   document.querySelector(".max-w-3xl").innerHTML = `
     <div class="text-center space-y-8">
       <h2 class="text-4xl font-bold text-brand-dark-blue">Position Yourself</h2>
-      <div class="bg-brand-pale-green/20 p-8 rounded-lg max-w-md mx-auto">
-        <p class="text-2xl mb-4">Please stand ${TEST_CONFIG.viewingDistance} meters from the screen</p>
-        <p class="text-lg mb-6">This distance ensures accurate test results</p>
-        <button
-          id="readyButton"
-          onclick="showTestInstructions()"
-          class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-        >
-          I'm Ready
-        </button>
-        <p class="text-sm text-gray-600 mt-2">Press Enter to continue</p>
-      </div>
-    </div>
-  `;
+      
+      <!-- Main Instructions Card -->
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+        <div class="space-y-6">
+          <!-- Viewing Distance -->
+          <div class="flex items-center space-x-4 text-left">
+            <div class="flex-shrink-0 w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-brand-dark-blue">Viewing Distance</h3>
+              <p class="text-gray-600">Stand 90 centimeters (35 inches) away from your screen</p>
+              <p class="text-gray-600">This is about arm's length from the screen</p>
+            </div>
+          </div>
 
-  // Add keyboard listener for Enter key
-  document.addEventListener("keypress", function handleEnter(e) {
-    if (e.key === "Enter") {
-      document.getElementById("readyButton").click();
-      document.removeEventListener("keypress", handleEnter);
-    }
-  });
-}
+          <!-- Test Overview -->
+          <div class="flex items-center space-x-4 text-left">
+            <div class="flex-shrink-0 w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-brand-dark-blue">Test Overview</h3>
+              <p class="text-gray-600">You'll be shown letters in different sizes and asked to identify their direction</p>
+            </div>
+          </div>
 
-// Function to show test instructions and demo
-function showTestInstructions() {
-  document.querySelector(".max-w-3xl").innerHTML = `
-    <div class="text-center space-y-8">
-      <h2 class="text-4xl font-bold text-brand-dark-blue">Visual Acuity Test</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Instructions Column -->
-        <div class="bg-brand-pale-green/20 p-6 rounded-lg">
-          <h3 class="text-xl font-semibold text-brand-dark-blue mb-4">Instructions:</h3>
-          <ul class="text-left space-y-3">
-            <li>• Cover your left eye with your hand.</li>
-            <li>• You'll be shown letter E in different sizes</li>
-            <li>• Press the button in which direction the E is pointing</li>
-            <li>• If you're not sure about a letter, make your best guess</li>
-            <li>• You'll get one retry if you answer incorrectly</li>
-          </ul>
-        </div>
+          <!-- Instructions List -->
+          <div class="space-y-4 text-left">
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">1</span>
+              </div>
+              <p class="text-gray-700">Cover one eye with your hand</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">2</span>
+              </div>
+              <p class="text-gray-700">Look at the letter in the center of the screen</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">3</span>
+              </div>
+              <p class="text-gray-700">Click the button showing the direction the letter is pointing</p>
+            </div>
+          </div>
 
-        <!-- Test Demonstration Animation -->
-        <div class="bg-white rounded-lg shadow-lg p-6">
-          <h3 class="text-xl font-semibold text-brand-dark-blue mb-4">Watch How to Do the Test:</h3>
-          <div class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-            <!-- Animation Container -->
-            <div id="testDemo" class="absolute inset-0 flex items-center justify-center">
-              <!-- E Letter Animation -->
-              <div id="letterDemo" class="text-6xl font-bold text-brand-dark-blue transform transition-all duration-1000">E</div>
-              <!-- Direction Buttons -->
-              <div id="directionButtons" class="absolute inset-0 pointer-events-none">
-                <!-- Top Button -->
-                <button id="topButton" class="absolute top-8 left-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↑</button>
-                <!-- Right Button -->
-                <button id="rightButton" class="absolute top-[37%] right-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">→</button>
-                <!-- Bottom Button -->
-                <button id="bottomButton" class="absolute bottom-8 left-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↓</button>
-                <!-- Left Button -->
-                <button id="leftButton" class="absolute top-[37%] left-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">←</button>
+          <!-- Test Sequence -->
+          <div class="bg-gray-50 rounded-lg p-4 text-left">
+            <h4 class="text-sm font-semibold text-gray-600 mb-2">Test Sequence:</h4>
+            <div class="space-y-2">
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-brand-dark-blue rounded-full"></div>
+                <p class="text-gray-700">Visual Acuity Test (Right Eye)</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-brand-dark-blue rounded-full"></div>
+                <p class="text-gray-700">Visual Acuity Test (Left Eye)</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-brand-dark-blue rounded-full"></div>
+                <p class="text-gray-700">Contrast Sensitivity Test (Right Eye)</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-brand-dark-blue rounded-full"></div>
+                <p class="text-gray-700">Contrast Sensitivity Test (Left Eye)</p>
+              </div>
+              <div class="flex items-center space-x-2">
+                <div class="w-2 h-2 bg-brand-dark-blue rounded-full"></div>
+                <p class="text-gray-700">Color Vision Test (Both Eyes)</p>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <p class="text-lg mt-6">When you're ready, click the button below to begin the test.</p>
       <button
-        id="startTestButton"
-        onclick="startAcuityTest()"
-        class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
+        onclick="showTestInstructions()"
+        class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
       >
         Start Test
       </button>
-      <p class="text-sm text-gray-600 mt-2">Press Enter to start the test</p>
     </div>
   `;
-
-  // Start the demo animation
-  playDemo();
-  demoInterval = setInterval(playDemo, 10000);
 
   // Add keyboard listener for Enter key
   document.addEventListener("keypress", function handleEnter(e) {
     if (e.key === "Enter") {
-      document.getElementById("startTestButton").click();
+      showTestInstructions();
+      document.removeEventListener("keypress", handleEnter);
+    }
+  });
+}
+
+// Function to show test instructions
+function showTestInstructions() {
+  document.querySelector(".max-w-3xl").innerHTML = `
+    <div class="text-center space-y-8">
+      <h2 class="text-4xl font-bold text-brand-dark-blue">Visual Acuity Test</h2>
+      
+      <!-- Main Instructions Card -->
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+        <div class="space-y-6">
+          <!-- Test Overview -->
+          <div class="flex items-center space-x-4 text-left">
+            <div class="flex-shrink-0 w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-brand-dark-blue">Test Overview</h3>
+              <p class="text-gray-600">You'll be shown a series of letters in different sizes</p>
+            </div>
+          </div>
+
+          <!-- Instructions List -->
+          <div class="space-y-4 text-left">
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">1</span>
+              </div>
+              <p class="text-gray-700">Cover your left eye with your hand</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">2</span>
+              </div>
+              <p class="text-gray-700">Look at the letter in the center of the screen</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">3</span>
+              </div>
+              <p class="text-gray-700">Click the button showing the direction the letter is pointing</p>
+            </div>
+          </div>
+
+          <!-- Keyboard Controls -->
+          <div class="bg-gray-50 rounded-lg p-4 text-left">
+            <h4 class="text-sm font-semibold text-gray-600 mb-2">Keyboard Controls:</h4>
+            <div class="grid grid-cols-3 gap-2 text-sm">
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">7</kbd>
+                <span class="text-gray-600">↖</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">8</kbd>
+                <span class="text-gray-600">↑</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">9</kbd>
+                <span class="text-gray-600">↗</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">4</kbd>
+                <span class="text-gray-600">←</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">5</kbd>
+                <span class="text-gray-600">-</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">6</kbd>
+                <span class="text-gray-600">→</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">1</kbd>
+                <span class="text-gray-600">↙</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">2</kbd>
+                <span class="text-gray-600">↓</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">3</kbd>
+                <span class="text-gray-600">↘</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onclick="startAcuityTest()"
+        class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+      >
+        Start Test
+      </button>
+    </div>
+  `;
+
+  // Add keyboard listener for Enter key
+  document.addEventListener("keypress", function handleEnter(e) {
+    if (e.key === "Enter") {
+      startAcuityTest();
       document.removeEventListener("keypress", handleEnter);
     }
   });
@@ -716,6 +1064,31 @@ document.addEventListener("keydown", (event) => {
       case "ArrowLeft":
         checkAnswer("270deg");
         break;
+      // Add diagonal directions with number pad
+      case "7":
+        checkAnswer("315deg"); // Top-Left
+        break;
+      case "8":
+        checkAnswer("0deg"); // Top
+        break;
+      case "9":
+        checkAnswer("45deg"); // Top-Right
+        break;
+      case "4":
+        checkAnswer("270deg"); // Left
+        break;
+      case "6":
+        checkAnswer("90deg"); // Right
+        break;
+      case "1":
+        checkAnswer("225deg"); // Bottom-Left
+        break;
+      case "2":
+        checkAnswer("180deg"); // Bottom
+        break;
+      case "3":
+        checkAnswer("135deg"); // Bottom-Right
+        break;
     }
   } else if (TEST_CONFIG.currentTest === "contrast") {
     switch (event.key) {
@@ -730,6 +1103,31 @@ document.addEventListener("keydown", (event) => {
         break;
       case "ArrowLeft":
         checkContrastAnswer("270deg");
+        break;
+      // Add diagonal directions with number pad
+      case "7":
+        checkContrastAnswer("315deg"); // Top-Left
+        break;
+      case "8":
+        checkContrastAnswer("0deg"); // Top
+        break;
+      case "9":
+        checkContrastAnswer("45deg"); // Top-Right
+        break;
+      case "4":
+        checkContrastAnswer("270deg"); // Left
+        break;
+      case "6":
+        checkContrastAnswer("90deg"); // Right
+        break;
+      case "1":
+        checkContrastAnswer("225deg"); // Bottom-Left
+        break;
+      case "2":
+        checkContrastAnswer("180deg"); // Bottom
+        break;
+      case "3":
+        checkContrastAnswer("135deg"); // Bottom-Right
         break;
     }
   }
@@ -763,139 +1161,114 @@ function startContrastTest() {
   document.querySelector(".max-w-3xl").innerHTML = `
     <div class="text-center space-y-8">
       <h2 class="text-4xl font-bold text-brand-dark-blue">Contrast Sensitivity Test</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <!-- Instructions Column -->
-        <div class="bg-brand-pale-green/20 p-6 rounded-lg">
-          <h3 class="text-xl font-semibold text-brand-dark-blue mb-4">Instructions:</h3>
-          <ul class="text-left space-y-3">
-            <li>• You'll be shown a letter C in different shades of gray</li>
-            <li>• The C will be pointing in one of four directions</li>
-            <li>• Press the button in which direction the C is pointing</li>
-            <li>• If you're not sure, make your best guess</li>
-            <li>• You'll get one retry if you answer incorrectly</li>
-          </ul>
-        </div>
+      
+      <!-- Main Instructions Card -->
+      <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+        <div class="space-y-6">
+          <!-- Test Overview -->
+          <div class="flex items-center space-x-4 text-left">
+            <div class="flex-shrink-0 w-12 h-12 bg-brand-pale-green/20 rounded-full flex items-center justify-center">
+              <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+              </svg>
+            </div>
+            <div>
+              <h3 class="text-xl font-semibold text-brand-dark-blue">Test Overview</h3>
+              <p class="text-gray-600">You'll be shown letter C in different shades of gray</p>
+            </div>
+          </div>
 
-        <!-- Test Demonstration Animation -->
-        <div class="bg-white rounded-lg shadow-lg p-6">
-          <h3 class="text-xl font-semibold text-brand-dark-blue mb-4">Watch How to Do the Test:</h3>
-          <div class="relative aspect-square bg-gray-100 rounded-lg overflow-hidden">
-            <!-- Animation Container -->
-            <div id="testDemo" class="absolute inset-0 flex items-center justify-center">
-              <!-- C Letter Animation -->
-              <img id="letterDemo" src="assets/c.png" class="w-24 h-24 transform transition-all duration-1000" alt="C">
-              <!-- Direction Buttons -->
-              <div id="directionButtons" class="absolute inset-0 pointer-events-none">
-                <!-- Top Button -->
-                <button id="topButton" class="absolute top-8 left-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↑</button>
-                <!-- Right Button -->
-                <button id="rightButton" class="absolute top-[37%] right-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">→</button>
-                <!-- Bottom Button -->
-                <button id="bottomButton" class="absolute bottom-8 left-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↓</button>
-                <!-- Left Button -->
-                <button id="leftButton" class="absolute top-[37%] left-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all transform scale-0 transition-transform duration-300 text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">←</button>
+          <!-- Instructions List -->
+          <div class="space-y-4 text-left">
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">1</span>
+              </div>
+              <p class="text-gray-700">Cover your left eye with your hand</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">2</span>
+              </div>
+              <p class="text-gray-700">Look at the letter C and identify which way it's pointing</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">3</span>
+              </div>
+              <p class="text-gray-700">Click the corresponding direction button or use the number pad</p>
+            </div>
+            <div class="flex items-start space-x-3">
+              <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/20 rounded-full flex items-center justify-center mt-0.5">
+                <span class="text-brand-dark-blue font-semibold">4</span>
+              </div>
+              <p class="text-gray-700">The contrast will decrease as you progress through the test</p>
+            </div>
+          </div>
+
+          <!-- Keyboard Controls -->
+          <div class="bg-gray-50 rounded-lg p-4 text-left">
+            <h4 class="text-sm font-semibold text-gray-600 mb-2">Keyboard Controls:</h4>
+            <div class="grid grid-cols-3 gap-2 text-sm">
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">7</kbd>
+                <span class="text-gray-600">↖</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">8</kbd>
+                <span class="text-gray-600">↑</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">9</kbd>
+                <span class="text-gray-600">↗</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">4</kbd>
+                <span class="text-gray-600">←</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">5</kbd>
+                <span class="text-gray-600">-</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">6</kbd>
+                <span class="text-gray-600">→</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">1</kbd>
+                <span class="text-gray-600">↙</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">2</kbd>
+                <span class="text-gray-600">↓</span>
+              </div>
+              <div class="flex items-center space-x-2">
+                <kbd class="px-2 py-1 bg-white rounded border">3</kbd>
+                <span class="text-gray-600">↘</span>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <p class="text-lg mt-6">When you're ready, click the button below to begin the test.</p>
       <button
         id="startTestButton"
         onclick="startContrastTestRound()"
-        class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
+        class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
       >
         Start Test
       </button>
-      <p class="text-sm text-gray-600 mt-2">Press Enter to start the test</p>
     </div>
   `;
-
-  // Start the demo animation
-  playContrastDemo();
-  demoInterval = setInterval(playContrastDemo, 10000);
 
   // Add keyboard listener for Enter key
   const enterHandler = function (e) {
     if (e.key === "Enter") {
-      // Stop the demo animation
-      if (demoInterval) {
-        clearInterval(demoInterval);
-        demoInterval = null;
-      }
-      // Remove the event listener
+      document.getElementById("startTestButton").click();
       document.removeEventListener("keypress", enterHandler);
-      // Start the test
-      startContrastTestRound();
     }
   };
   document.addEventListener("keypress", enterHandler);
-}
-
-// Function to play contrast test demonstration
-function playContrastDemo() {
-  const letterDemo = document.getElementById("letterDemo");
-  const topButton = document.getElementById("topButton");
-  const rightButton = document.getElementById("rightButton");
-  const bottomButton = document.getElementById("bottomButton");
-  const leftButton = document.getElementById("leftButton");
-
-  // Reset animations
-  letterDemo.style.transform = "rotate(0deg)";
-  letterDemo.style.opacity = "1";
-  [topButton, rightButton, bottomButton, leftButton].forEach((btn) => {
-    btn.style.transform = "scale(0)";
-    btn.classList.remove("bg-brand-pale-green", "bg-red-300");
-  });
-
-  // Show all buttons
-  setTimeout(() => {
-    [topButton, rightButton, bottomButton, leftButton].forEach((btn) => {
-      btn.style.transform = "scale(1)";
-    });
-  }, 1000);
-
-  // Rotate C and press corresponding button
-  const directions = [
-    { rotation: "0deg", button: topButton, correct: false },
-    { rotation: "90deg", button: rightButton, correct: true },
-    { rotation: "180deg", button: bottomButton, correct: true },
-    { rotation: "270deg", button: leftButton, correct: true },
-  ];
-
-  // Start with full opacity
-  letterDemo.style.opacity = "1";
-
-  directions.forEach((direction, index) => {
-    // Rotate C and press button
-    setTimeout(() => {
-      letterDemo.style.transform = `rotate(${direction.rotation})`;
-      // Change opacity for each direction
-      letterDemo.style.opacity =
-        TEST_CONFIG.contrastLevels[
-          index % TEST_CONFIG.contrastLevels.length
-        ].level;
-      direction.button.classList.add(
-        direction.correct ? "bg-brand-pale-green" : "bg-red-300"
-      );
-    }, 2000 + index * 2000);
-
-    // Reset button
-    setTimeout(() => {
-      direction.button.classList.remove("bg-brand-pale-green", "bg-red-300");
-    }, 2500 + index * 2000);
-  });
-
-  // Reset for next play
-  setTimeout(() => {
-    letterDemo.style.transform = "rotate(0deg)";
-    letterDemo.style.opacity = "1";
-    [topButton, rightButton, bottomButton, leftButton].forEach((btn) => {
-      btn.style.transform = "scale(0)";
-      btn.classList.remove("bg-brand-pale-green", "bg-red-300");
-    });
-  }, 10000);
 }
 
 // Function to start a contrast test round
@@ -925,12 +1298,20 @@ function startContrastTestRound() {
           <div id="testButtons" class="absolute inset-0">
             <!-- Top Button -->
             <button onclick="checkContrastAnswer('0deg')" class="absolute top-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↑</button>
+            <!-- Top-Right Button -->
+            <button onclick="checkContrastAnswer('45deg')" class="absolute top-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↗</button>
             <!-- Right Button -->
             <button onclick="checkContrastAnswer('90deg')" class="absolute top-[50%] right-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">→</button>
+            <!-- Bottom-Right Button -->
+            <button onclick="checkContrastAnswer('135deg')" class="absolute bottom-8 right-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↘</button>
             <!-- Bottom Button -->
             <button onclick="checkContrastAnswer('180deg')" class="absolute bottom-8 right-[38%] -translate-x-1/2 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↓</button>
+            <!-- Bottom-Left Button -->
+            <button onclick="checkContrastAnswer('225deg')" class="absolute bottom-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↙</button>
             <!-- Left Button -->
             <button onclick="checkContrastAnswer('270deg')" class="absolute top-[50%] left-8 -translate-y-1/2 px-3 py-6 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">←</button>
+            <!-- Top-Left Button -->
+            <button onclick="checkContrastAnswer('315deg')" class="absolute top-8 left-8 px-6 py-3 bg-white rounded-lg shadow-md hover:bg-brand-pale-green transition-all text-2xl font-semibold text-brand-dark-blue border-2 border-gray-200">↖</button>
           </div>
         </div>
       </div>
@@ -939,7 +1320,6 @@ function startContrastTestRound() {
         <p class="mt-2">Round ${TEST_CONFIG.currentRound + 1} of ${
     TEST_CONFIG.rounds
   }</p>
-        <p class="mt-2 text-sm text-gray-600">You can use arrow keys (↑, →, ↓, ←) or click the buttons to answer</p>
       </div>
     </div>
   `;
@@ -1004,7 +1384,6 @@ function checkContrastAnswer(selectedDirection) {
       TEST_CONFIG.hasRetry = false;
 
       if (TEST_CONFIG.currentRound < TEST_CONFIG.rounds) {
-        // Start next round
         startContrastTestRound();
       } else {
         // Test completed with perfect score
@@ -1012,13 +1391,18 @@ function checkContrastAnswer(selectedDirection) {
         showContrastResults(true, isLeftEye ? "left" : "right");
       }
     } else if (!TEST_CONFIG.hasRetry) {
-      // Wrong answer but haven't used retry yet
+      // First wrong answer - mark retry used and continue to next contrast level
       TEST_CONFIG.hasRetry = true;
+      TEST_CONFIG.currentRound++;
 
-      // Try same contrast level again
-      startContrastTestRound();
+      if (TEST_CONFIG.currentRound < TEST_CONFIG.rounds) {
+        startContrastTestRound();
+      } else {
+        const isLeftEye = TEST_CONFIG.currentEye === "left";
+        showContrastResults(false, isLeftEye ? "left" : "right");
+      }
     } else {
-      // Wrong answer and already used retry - end test
+      // Second wrong answer in a row - end test
       const isLeftEye = TEST_CONFIG.currentEye === "left";
       showContrastResults(false, isLeftEye ? "left" : "right");
     }
@@ -1029,77 +1413,50 @@ function checkContrastAnswer(selectedDirection) {
 
 // Function to show contrast test results
 function showContrastResults(perfectScore, eye = "right") {
-  const lastSuccessfulRound = TEST_CONFIG.currentRound - 1;
-  const contrastResult = TEST_CONFIG.contrastLevels[lastSuccessfulRound].label;
-
-  // Store the result for the current eye
-  TEST_CONFIG[`${eye}EyeContrastResult`] = contrastResult;
-
-  if (eye === "right") {
-    // Show left eye test prompt
-    document.querySelector(".max-w-3xl").innerHTML = `
-      <div class="text-center space-y-8">
-        <h2 class="text-4xl font-bold text-brand-dark-blue">Right Eye Contrast Test Complete!</h2>
-        <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-          <p class="text-2xl mb-4">Right Eye Contrast Sensitivity: ${contrastResult}</p>
-          ${
-            perfectScore
-              ? '<p class="text-lg text-green-600">Perfect score! You completed all levels.</p>'
-              : ""
-          }
-        </div>
-        <div class="mt-8">
-          <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your left eye</h3>
-          <p class="text-lg mb-6">Please cover your right eye with your hand</p>
-          <button
-            id="startLeftEyeContrastButton"
-            onclick="startLeftEyeContrastTest()"
-            class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-          >
-            Start Left Eye Test
-          </button>
-          <p class="text-sm text-gray-600 mt-2">Press Enter to start the test</p>
-        </div>
+  const passed = perfectScore;
+  document.querySelector(".max-w-3xl").innerHTML = `
+    <div class="text-center space-y-8">
+      <h2 class="text-4xl font-bold text-brand-dark-blue">Contrast Test Results - ${
+        eye === "right" ? "Right" : "Left"
+      } Eye</h2>
+      <div class="bg-brand-pale-green/20 p-8 rounded-lg">
+        <p class="text-2xl mb-4">Test Status: ${
+          passed ? "Passed" : "Failed"
+        }</p>
+        <p class="text-xl mb-2">Correct Answers: ${
+          TEST_CONFIG.correctAnswers
+        } out of ${TEST_CONFIG.requiredCorrectAnswers} required</p>
+        <p class="text-xl mb-2">Wrong Answers: ${TEST_CONFIG.wrongAnswers}</p>
+        <p class="text-lg mt-4">${
+          passed
+            ? "Your contrast sensitivity appears to be normal. No action needed."
+            : "You may have some contrast sensitivity issues. Consider consulting an eye care professional for a comprehensive assessment."
+        }</p>
       </div>
-    `;
-
-    // Add keyboard listener for Enter key
-    const enterHandler = function (e) {
-      if (e.key === "Enter") {
-        document.getElementById("startLeftEyeContrastButton").click();
-        document.removeEventListener("keypress", enterHandler);
+      ${
+        eye === "right"
+          ? `<button onclick="startLeftEyeContrastTest()" class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
+              Test Left Eye
+            </button>`
+          : `<button onclick="switchTestType('color')" class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
+              Continue to Color Test
+            </button>`
       }
-    };
-    document.addEventListener("keypress", enterHandler);
-  } else {
-    // Show final results for both eyes and return home button
-    document.querySelector(".max-w-3xl").innerHTML = `
-      <div class="text-center space-y-8">
-        <h2 class="text-4xl font-bold text-brand-dark-blue">All Tests Completed!</h2>
-        <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-          <p class="text-2xl mb-4">Your Test Results:</p>
-          <div class="grid grid-cols-2 gap-4 mt-4">
-            <div class="p-4 bg-white rounded-lg">
-              <p class="text-xl font-semibold text-brand-dark-blue">Right Eye</p>
-              <p class="text-lg mt-2">Visual Acuity: ${TEST_CONFIG.rightEyeResult}</p>
-              <p class="text-lg mt-2">Contrast Sensitivity: ${TEST_CONFIG.rightEyeContrastResult}</p>
-            </div>
-            <div class="p-4 bg-white rounded-lg">
-              <p class="text-xl font-semibold text-brand-dark-blue">Left Eye</p>
-              <p class="text-lg mt-2">Visual Acuity: ${TEST_CONFIG.leftEyeResult}</p>
-              <p class="text-lg mt-2">Contrast Sensitivity: ${TEST_CONFIG.leftEyeContrastResult}</p>
-            </div>
-          </div>
-        </div>
-        <button
-          onclick="exitFullscreen()"
-          class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold"
-        >
-          Return to Home
-        </button>
-      </div>
-    `;
-  }
+    </div>
+  `;
+
+  // Add keyboard listener for Enter key
+  const enterHandler = function (e) {
+    if (e.key === "Enter") {
+      if (eye === "right") {
+        startLeftEyeContrastTest();
+      } else {
+        switchTestType("color");
+      }
+      document.removeEventListener("keypress", enterHandler);
+    }
+  };
+  document.addEventListener("keypress", enterHandler);
 }
 
 // Function to start left eye contrast test
@@ -1113,4 +1470,45 @@ function startLeftEyeContrastTest() {
 
   // Start the first round
   startContrastTestRound();
+}
+
+// Function to load a script dynamically
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = src;
+    script.onload = resolve;
+    script.onerror = reject;
+    document.head.appendChild(script);
+  });
+}
+
+// Function to switch between test types
+async function switchTestType(testType) {
+  try {
+    // Load the appropriate script
+    await loadScript(`js/${testType}Test.js`);
+
+    // Wait a moment for the script to initialize
+    await new Promise((resolve) => setTimeout(resolve, 100));
+
+    // Start the test
+    switch (testType) {
+      case "acuity":
+        startAcuityTest();
+        break;
+      case "contrast":
+        startContrastTest();
+        break;
+      case "color":
+        if (typeof window.startColorTest === "function") {
+          window.startColorTest();
+        } else {
+          console.error("startColorTest function not found");
+        }
+        break;
+    }
+  } catch (error) {
+    console.error("Error loading test script:", error);
+  }
 }

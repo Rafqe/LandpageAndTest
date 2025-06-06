@@ -30,6 +30,9 @@
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
       rel="stylesheet"
     />
+    <!-- Load scripts in the correct order -->
+    <script src="js/eyeTest.js" defer></script>
+    <script src="js/colorTest.js" defer></script>
   </head>
   <body class="font-['Inter'] min-h-screen flex flex-col bg-gray-50">
     <!-- Test Content -->
@@ -62,8 +65,5 @@
         </div>
       </div>
     </div>
-
-    <!-- Include the eye test JavaScript file -->
-    <script src="js/eyeTest.js"></script>
   </body>
 </html>

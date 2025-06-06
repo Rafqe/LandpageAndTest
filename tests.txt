@@ -1,0 +1,37 @@
+
+    Color Vision Test (Color Blindness)
+            Implement the Ishihara test plates
+            Test for different types of color vision deficiencies (protanopia, deuteranopia, tritanopia)
+            Show numbers or patterns in colored dots
+            Provide detailed results about color vision capabilities
+    Visual Field Test (Peripheral Vision)
+            Test peripheral vision by showing dots or shapes in different areas of the screen
+            Map the visual field to detect any blind spots or areas of reduced sensitivity
+            Create a visual field map showing the results
+            Important for detecting conditions like glaucoma
+    Depth Perception Test
+            Implement a stereopsis test using 3D images
+            Test ability to perceive depth and 3D space
+            Use random dot stereograms or 3D shapes
+            Important for activities like driving and sports
+    Eye Movement Test
+            Test smooth pursuit eye movements
+            Test saccadic eye movements
+            Test convergence/divergence
+            Important for reading and tracking moving objects
+    Night Vision Test
+            Test vision in low-light conditions
+            Measure dark adaptation
+            Important for driving at night
+    Glare Sensitivity Test
+            Test how well the eyes handle bright lights
+            Important for driving and outdoor activities
+            Measure recovery time from glare
+    Focus Flexibility Test
+            Test ability to switch focus between near and far objects
+            Important for reading and computer work
+            Measure accommodation ability
+    Eye Coordination Test
+            Test how well both eyes work together
+            Important for depth perception and 3D vision
+            Test for strabismus (crossed eyes)
