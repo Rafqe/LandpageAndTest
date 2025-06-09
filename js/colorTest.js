@@ -314,33 +314,18 @@ function showColorTestResults() {
   const passed =
     TEST_CONFIG.correctAnswers >= colorTestConfig.requiredCorrectAnswers;
 
+  // Store the color test result
+  TEST_CONFIG.colorTestResult = {
+    passed: passed,
+    correctAnswers: TEST_CONFIG.correctAnswers,
+    wrongAnswers: TEST_CONFIG.wrongAnswers,
+  };
+
   // Remove keyboard listener when showing results
   document.removeEventListener("keypress", handleColorTestKeyPress);
 
-  document.querySelector(".max-w-3xl").innerHTML = `
-        <div class="text-center space-y-8">
-            <h2 class="text-4xl font-bold text-brand-dark-blue">Color Vision Test Results</h2>
-            <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-                <p class="text-2xl mb-4">Test Status: ${
-                  passed ? "Passed" : "Failed"
-                }</p>
-                <p class="text-xl mb-2">Correct Answers: ${
-                  TEST_CONFIG.correctAnswers
-                } out of ${colorTestConfig.requiredCorrectAnswers} required</p>
-                <p class="text-xl mb-2">Wrong Answers: ${
-                  TEST_CONFIG.wrongAnswers
-                }</p>
-                <p class="text-lg mt-4">${
-                  passed
-                    ? "Your color vision appears to be normal. No action needed."
-                    : "You may have some color vision deficiency. Consider consulting an eye care professional for a comprehensive color vision assessment."
-                }</p>
-            </div>
-            <button onclick="exitFullscreen()" class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
-                Return to Home
-            </button>
-        </div>
-    `;
+  // Show the final summary instead of color test results
+  showFinalSummary();
 }
 
 // Make sure the functions are available globally

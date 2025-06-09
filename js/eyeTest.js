@@ -367,7 +367,10 @@ function showResults(perfectScore, eye = "right") {
   const snellenResult = getSnellenEquivalent(lastSuccessfulRound);
 
   // Store the result for the current eye
-  TEST_CONFIG[`${eye}EyeResult`] = snellenResult;
+  TEST_CONFIG[`${eye}EyeResult`] =
+    lastSuccessfulRound === -1
+      ? "Eyesight needs immediate attention!"
+      : snellenResult;
 
   if (eye === "right") {
     // Show left eye test prompt
@@ -375,7 +378,7 @@ function showResults(perfectScore, eye = "right") {
       <div class="text-center space-y-8">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
           <div class="space-y-6">
-            <!-- Right Eye Results -->
+            <!-- Right Eye Complete -->
             <div class="bg-brand-pale-green/20 p-6 rounded-lg">
               <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Right Eye Test Complete!</h3>
               <div class="flex items-center justify-center space-x-4">
@@ -386,15 +389,9 @@ function showResults(perfectScore, eye = "right") {
                   </svg>
                 </div>
                 <div class="text-left">
-                  <p class="text-2xl font-bold text-brand-dark-blue">${snellenResult}</p>
-                  <p class="text-gray-600">Visual Acuity</p>
+                  <p class="text-2xl font-bold text-brand-dark-blue">Right Eye Test Completed</p>
                 </div>
               </div>
-              ${
-                perfectScore
-                  ? '<p class="text-lg text-green-600 mt-4">Perfect score! You completed all levels.</p>'
-                  : ""
-              }
             </div>
 
             <!-- Left Eye Instructions -->
@@ -430,44 +427,13 @@ function showResults(perfectScore, eye = "right") {
     };
     document.addEventListener("keypress", enterHandler);
   } else {
-    // Show final results for both eyes and prompt for contrast test
+    // Show prompt for contrast test
     document.querySelector(".max-w-3xl").innerHTML = `
       <div class="text-center space-y-8">
         <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
           <div class="space-y-6">
             <h2 class="text-3xl font-bold text-brand-dark-blue">Acuity Test Completed!</h2>
             
-            <!-- Results Grid -->
-            <div class="grid grid-cols-2 gap-6">
-              <!-- Right Eye -->
-              <div class="bg-brand-pale-green/20 p-6 rounded-lg">
-                <div class="flex items-center space-x-4 mb-4">
-                  <div class="w-12 h-12 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </div>
-                  <h3 class="text-xl font-semibold text-brand-dark-blue">Right Eye</h3>
-                </div>
-                <p class="text-2xl font-bold text-brand-dark-blue">${TEST_CONFIG.rightEyeResult}</p>
-              </div>
-
-              <!-- Left Eye -->
-              <div class="bg-brand-pale-green/20 p-6 rounded-lg">
-                <div class="flex items-center space-x-4 mb-4">
-                  <div class="w-12 h-12 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
-                    <svg class="w-6 h-6 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  </div>
-                  <h3 class="text-xl font-semibold text-brand-dark-blue">Left Eye</h3>
-                </div>
-                <p class="text-2xl font-bold text-brand-dark-blue">${TEST_CONFIG.leftEyeResult}</p>
-              </div>
-            </div>
-
             <!-- Next Test Prompt -->
             <div class="text-center pt-6">
               <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your contrast sensitivity</h3>
@@ -1361,50 +1327,76 @@ function checkContrastAnswer(selectedDirection) {
 
 // Function to show contrast test results
 function showContrastResults(perfectScore, eye = "right") {
-  const passed = perfectScore;
-  document.querySelector(".max-w-3xl").innerHTML = `
-    <div class="text-center space-y-8">
-      <h2 class="text-4xl font-bold text-brand-dark-blue">Contrast Test Results - ${
-        eye === "right" ? "Right" : "Left"
-      } Eye</h2>
-      <div class="bg-brand-pale-green/20 p-8 rounded-lg">
-        <p class="text-2xl mb-4">Test Status: ${
-          passed ? "Passed" : "Failed"
-        }</p>
-        <p class="text-xl mb-2">Correct Answers: ${
-          TEST_CONFIG.correctAnswers
-        } out of ${TEST_CONFIG.requiredCorrectAnswers} required</p>
-        <p class="text-xl mb-2">Wrong Answers: ${TEST_CONFIG.wrongAnswers}</p>
-        <p class="text-lg mt-4">${
-          passed
-            ? "Your contrast sensitivity appears to be normal. No action needed."
-            : "You may have some contrast sensitivity issues. Consider consulting an eye care professional for a comprehensive assessment."
-        }</p>
-      </div>
-      ${
-        eye === "right"
-          ? `<button onclick="startLeftEyeContrastTest()" class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
-              Test Left Eye
-            </button>`
-          : `<button onclick="switchTestType('color')" class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold">
-              Continue to Color Test
-            </button>`
-      }
-    </div>
-  `;
-
-  // Add keyboard listener for Enter key
-  const enterHandler = function (e) {
-    if (e.key === "Enter") {
-      if (eye === "right") {
-        startLeftEyeContrastTest();
-      } else {
-        switchTestType("color");
-      }
-      document.removeEventListener("keypress", enterHandler);
-    }
+  // Store the contrast test result
+  TEST_CONFIG[`${eye}EyeContrastResult`] = {
+    level: TEST_CONFIG.currentRound + 1,
+    passed: TEST_CONFIG.currentRound >= 7,
   };
-  document.addEventListener("keypress", enterHandler);
+
+  if (eye === "right") {
+    // Show prompt for left eye contrast test
+    document.querySelector(".max-w-3xl").innerHTML = `
+      <div class="text-center space-y-8">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+          <div class="space-y-6">
+            <h2 class="text-3xl font-bold text-brand-dark-blue">Right Eye Contrast Test Completed!</h2>
+            
+            <!-- Next Test Prompt -->
+            <div class="text-center pt-6">
+              <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your left eye</h3>
+              <p class="text-lg mb-6">Please cover your right eye with your hand</p>
+              <button
+                onclick="startLeftEyeContrastTest()"
+                class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+              >
+                Start Left Eye Test
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add keyboard listener for Enter key
+    const enterHandler = function (e) {
+      if (e.key === "Enter") {
+        startLeftEyeContrastTest();
+        document.removeEventListener("keypress", enterHandler);
+      }
+    };
+    document.addEventListener("keypress", enterHandler);
+  } else {
+    // Show prompt for color test
+    document.querySelector(".max-w-3xl").innerHTML = `
+      <div class="text-center space-y-8">
+        <div class="bg-white rounded-xl shadow-lg p-8 max-w-2xl mx-auto">
+          <div class="space-y-6">
+            <h2 class="text-3xl font-bold text-brand-dark-blue">Contrast Test Completed!</h2>
+            
+            <!-- Next Test Prompt -->
+            <div class="text-center pt-6">
+              <h3 class="text-2xl font-semibold text-brand-dark-blue mb-4">Now let's test your color vision</h3>
+              <p class="text-lg mb-6">This test will check your ability to distinguish different colors</p>
+              <button
+                onclick="switchTestType('color')"
+                class="bg-brand-dark-blue text-white py-4 px-12 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-xl font-semibold shadow-lg"
+              >
+                Start Color Test
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    // Add keyboard listener for Enter key
+    document.addEventListener("keypress", function handleEnter(e) {
+      if (e.key === "Enter") {
+        switchTestType("color");
+        document.removeEventListener("keypress", handleEnter);
+      }
+    });
+  }
 }
 
 // Function to start left eye contrast test
@@ -1459,4 +1451,280 @@ async function switchTestType(testType) {
   } catch (error) {
     console.error("Error loading test script:", error);
   }
+}
+
+// Function to show final test summary
+function showFinalSummary() {
+  // Helper function to format acuity result
+  const formatAcuityResult = (result) => {
+    if (result.includes("needs immediate attention")) {
+      return "Eyesight needs immediate attention!";
+    } else if (
+      result.includes("needs attention") ||
+      !result.includes("20/20")
+    ) {
+      return "Eyesight needs attention!";
+    } else {
+      return "Eyes look good!";
+    }
+  };
+
+  document.querySelector(".max-w-3xl").innerHTML = `
+    <div class="text-center space-y-6">
+      <h2 class="text-4xl font-bold text-brand-dark-blue">Vision Test Summary</h2>
+      
+      <!-- Main Results Card -->
+      <div class="bg-white rounded-xl shadow-lg p-6 max-w-5xl mx-auto">
+        <div class="grid grid-cols-3 gap-6">
+          <!-- Visual Acuity Section -->
+          <div class="space-y-3">
+            <h3 class="text-xl font-semibold text-brand-dark-blue">Visual Acuity</h3>
+            <div class="space-y-3">
+              <!-- Right Eye -->
+              <div class="${
+                TEST_CONFIG.rightEyeResult.includes("needs immediate attention")
+                  ? "bg-red-100"
+                  : TEST_CONFIG.rightEyeResult.includes("needs attention") ||
+                    !TEST_CONFIG.rightEyeResult.includes("20/20")
+                  ? "bg-yellow-100"
+                  : "bg-brand-pale-green/20"
+              } p-4 rounded-lg h-32 flex flex-col justify-center">
+                <div class="flex items-center space-x-3 mb-2">
+                  <div class="w-10 h-10 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-brand-dark-blue">Right Eye</h4>
+                </div>
+                <p class="text-lg font-bold ${
+                  TEST_CONFIG.rightEyeResult.includes(
+                    "needs immediate attention"
+                  )
+                    ? "text-red-600"
+                    : TEST_CONFIG.rightEyeResult.includes("needs attention") ||
+                      !TEST_CONFIG.rightEyeResult.includes("20/20")
+                    ? "text-yellow-600"
+                    : "text-brand-dark-blue"
+                }">${formatAcuityResult(TEST_CONFIG.rightEyeResult)}</p>
+              </div>
+
+              <!-- Left Eye -->
+              <div class="${
+                TEST_CONFIG.leftEyeResult.includes("needs immediate attention")
+                  ? "bg-red-100"
+                  : TEST_CONFIG.leftEyeResult.includes("needs attention") ||
+                    !TEST_CONFIG.leftEyeResult.includes("20/20")
+                  ? "bg-yellow-100"
+                  : "bg-brand-pale-green/20"
+              } p-4 rounded-lg h-32 flex flex-col justify-center">
+                <div class="flex items-center space-x-3 mb-2">
+                  <div class="w-10 h-10 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-brand-dark-blue">Left Eye</h4>
+                </div>
+                <p class="text-lg font-bold ${
+                  TEST_CONFIG.leftEyeResult.includes(
+                    "needs immediate attention"
+                  )
+                    ? "text-red-600"
+                    : TEST_CONFIG.leftEyeResult.includes("needs attention") ||
+                      !TEST_CONFIG.leftEyeResult.includes("20/20")
+                    ? "text-yellow-600"
+                    : "text-brand-dark-blue"
+                }">${formatAcuityResult(TEST_CONFIG.leftEyeResult)}</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Contrast Sensitivity Section -->
+          <div class="space-y-3">
+            <h3 class="text-xl font-semibold text-brand-dark-blue">Contrast Sensitivity</h3>
+            <div class="space-y-3">
+              <!-- Right Eye -->
+              <div class="${
+                TEST_CONFIG.rightEyeContrastResult.level < 5
+                  ? "bg-red-100"
+                  : TEST_CONFIG.rightEyeContrastResult.level < 9
+                  ? "bg-yellow-100"
+                  : "bg-brand-pale-green/20"
+              } p-4 rounded-lg h-32 flex flex-col justify-center">
+                <div class="flex items-center space-x-3 mb-2">
+                  <div class="w-10 h-10 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-brand-dark-blue">Right Eye</h4>
+                </div>
+                <p class="text-lg font-bold ${
+                  TEST_CONFIG.rightEyeContrastResult.level < 5
+                    ? "text-red-600"
+                    : TEST_CONFIG.rightEyeContrastResult.level < 9
+                    ? "text-yellow-600"
+                    : "text-brand-dark-blue"
+                }">${
+    TEST_CONFIG.rightEyeContrastResult.level < 5
+      ? "Eyesight needs immediate attention!"
+      : TEST_CONFIG.rightEyeContrastResult.level < 9
+      ? "Needs attention"
+      : "Good"
+  }</p>
+              </div>
+
+              <!-- Left Eye -->
+              <div class="${
+                TEST_CONFIG.leftEyeContrastResult.level < 5
+                  ? "bg-red-100"
+                  : TEST_CONFIG.leftEyeContrastResult.level < 9
+                  ? "bg-yellow-100"
+                  : "bg-brand-pale-green/20"
+              } p-4 rounded-lg h-32 flex flex-col justify-center">
+                <div class="flex items-center space-x-3 mb-2">
+                  <div class="w-10 h-10 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                    <svg class="w-5 h-5 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                  </div>
+                  <h4 class="text-lg font-semibold text-brand-dark-blue">Left Eye</h4>
+                </div>
+                <p class="text-lg font-bold ${
+                  TEST_CONFIG.leftEyeContrastResult.level < 5
+                    ? "text-red-600"
+                    : TEST_CONFIG.leftEyeContrastResult.level < 9
+                    ? "text-yellow-600"
+                    : "text-brand-dark-blue"
+                }">${
+    TEST_CONFIG.leftEyeContrastResult.level < 5
+      ? "Eyesight needs immediate attention!"
+      : TEST_CONFIG.leftEyeContrastResult.level < 9
+      ? "Needs attention"
+      : "Good"
+  }</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Color Vision Section -->
+          <div class="space-y-3">
+            <h3 class="text-xl font-semibold text-brand-dark-blue">Color Vision</h3>
+            <div class="${
+              !TEST_CONFIG.colorTestResult
+                ? "bg-gray-100"
+                : !TEST_CONFIG.colorTestResult.passed
+                ? "bg-red-100"
+                : TEST_CONFIG.colorTestResult.wrongAnswers > 0
+                ? "bg-yellow-100"
+                : "bg-brand-pale-green/20"
+            } p-4 rounded-lg h-[calc(100%-3rem)] flex flex-col justify-center">
+              <div class="flex items-center space-x-3 mb-2">
+                <div class="w-10 h-10 bg-brand-pale-green/30 rounded-full flex items-center justify-center">
+                  <svg class="w-5 h-5 text-brand-dark-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+                  </svg>
+                </div>
+                <h4 class="text-lg font-semibold text-brand-dark-blue">Color Vision Test</h4>
+              </div>
+              <p class="text-lg font-bold ${
+                !TEST_CONFIG.colorTestResult
+                  ? "text-gray-600"
+                  : !TEST_CONFIG.colorTestResult.passed
+                  ? "text-red-600"
+                  : TEST_CONFIG.colorTestResult.wrongAnswers > 0
+                  ? "text-yellow-600"
+                  : "text-brand-dark-blue"
+              }">${
+    !TEST_CONFIG.colorTestResult
+      ? "Not Completed"
+      : !TEST_CONFIG.colorTestResult.passed
+      ? "Eyesight needs immediate attention!"
+      : TEST_CONFIG.colorTestResult.wrongAnswers > 0
+      ? "Needs another test"
+      : "All good"
+  }</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommendations Section -->
+        <div class="mt-6">
+          <h3 class="text-xl font-semibold text-brand-dark-blue mb-3">Recommendations</h3>
+          <div class="bg-gray-50 p-4 rounded-lg text-left">
+            <ul class="space-y-2">
+              ${getRecommendations()}
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      <button
+        onclick="exitFullscreen()"
+        class="bg-brand-dark-blue text-white py-3 px-8 rounded-lg hover:bg-brand-cyan transition-all transform hover:-translate-y-1 text-lg font-semibold shadow-lg"
+      >
+        Return to Home
+      </button>
+    </div>
+  `;
+
+  // Add keyboard listener for Enter key
+  document.addEventListener("keypress", function handleEnter(e) {
+    if (e.key === "Enter") {
+      exitFullscreen();
+      document.removeEventListener("keypress", handleEnter);
+    }
+  });
+}
+
+// Function to generate recommendations based on test results
+function getRecommendations() {
+  const recommendations = [];
+
+  // Check acuity results
+  if (
+    TEST_CONFIG.rightEyeResult.includes("needs attention") ||
+    TEST_CONFIG.leftEyeResult.includes("needs attention")
+  ) {
+    recommendations.push(`
+      <li class="flex items-start space-x-3">
+        <div class="flex-shrink-0 w-6 h-6 bg-red-100 rounded-full flex items-center justify-center mt-0.5">
+          <span class="text-red-600 font-semibold">!</span>
+        </div>
+        <p class="text-gray-700">Schedule an appointment with an optometrist for a comprehensive eye examination</p>
+      </li>
+    `);
+  }
+
+  // Check contrast results
+  if (
+    !TEST_CONFIG.rightEyeContrastResult.passed ||
+    !TEST_CONFIG.leftEyeContrastResult.passed
+  ) {
+    recommendations.push(`
+      <li class="flex items-start space-x-3">
+        <div class="flex-shrink-0 w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center mt-0.5">
+          <span class="text-yellow-600 font-semibold">!</span>
+        </div>
+        <p class="text-gray-700">Consider having your contrast sensitivity evaluated by an eye care professional</p>
+      </li>
+    `);
+  }
+
+  // Add general recommendations
+  recommendations.push(`
+    <li class="flex items-start space-x-3">
+      <div class="flex-shrink-0 w-6 h-6 bg-brand-pale-green/30 rounded-full flex items-center justify-center mt-0.5">
+        <span class="text-brand-dark-blue font-semibold">✓</span>
+      </div>
+      <p class="text-gray-700">Schedule regular eye examinations every 1-2 years</p>
+    </li>
+  `);
+
+  return recommendations.join("");
 }
